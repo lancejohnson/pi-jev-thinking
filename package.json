@@ -1,0 +1,22 @@
+{
+  "name": "pi-jev-thinking",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Sets Pi's thinking level for each prompt from a TypeSafe Jev difficulty judgment.",
+  "license": "MIT",
+  "pi": { "extensions": ["./index.ts"] },
+  "scripts": {
+    "check": "tsc --noEmit",
+    "test": "node --test --experimental-strip-types test/*.test.ts",
+    "probe": "node --experimental-strip-types scripts/probe.ts"
+  },
+  "dependencies": {
+    "@typesafe-ai/sdk": "^0.6.0"
+  },
+  "devDependencies": {
+    "@earendil-works/pi-coding-agent": "^0.86.1",
+    "@types/node": "^24.0.0",
+    "typescript": "^5.9.0"
+  }
+}
