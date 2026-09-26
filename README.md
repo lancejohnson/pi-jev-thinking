@@ -19,6 +19,20 @@ Key: `TYPESAFE_API_KEY`, `JEV_API_KEY`, or Infisical `JEV_API_KEY`.
 { "enabled": true, "minLevel": "low", "maxLevel": "xhigh", "keepBelow": 0.6, "respectManualPrompts": 3, "timeoutMs": 2500 }
 ```
 
+Those are the built-in defaults. Any key you leave out falls back to them.
+
+### Capping the level
+
+I keep my maximum at `high`, so my whole config file is:
+
+```json
+{ "maxLevel": "high" }
+```
+
+With that cap, a prompt Jev rates as xhigh runs at high instead. xhigh costs a lot more time and tokens, and high is enough for nearly everything I do.
+
+If you want the hardest prompts to get extra-high thinking, set `"maxLevel": "xhigh"` or leave the key out, since xhigh is the default. `minLevel` works the same way at the bottom of the scale. `npm run probe` shows what Jev picks under your current config, and it notes when the cap lowered a level.
+
 ## Command
 
 `/jev-thinking` status · `on` · `off` (this session) · `resume` (end a manual-change pause)
