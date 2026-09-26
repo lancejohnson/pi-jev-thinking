@@ -6,17 +6,17 @@
  *   npm run probe -- --prev "Want me to push it?" "yes"   # rate a continuation
  *
  * Uses the same buildRequest/decide as index.ts and the live config file.
- * Key: TYPESAFE_API_KEY, JEV_API_KEY, or Infisical JEV_API_KEY.
+ * Key: TYPESAFE_API_KEY, JEV_API_KEY, or apiKeyCommand in config.json (see README).
  */
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { TypeSafeClient } from "@typesafe-ai/sdk";
+import { keyCommand, keyFromEnv, NO_KEY } from "../src/key.ts";
 import { buildRequest, decide, LADDER, normalizeConfig, type Config } from "../src/decide.ts";
 
 const HOME = process.env.HOME ?? "";
 const CONFIG = join(HOME, ".pi/agent/pi-jev-thinking/config.json");
-const INF_SECRET = join(HOME, ".claude/skills/api-call/scripts/inf-secret");
 
 const SAMPLES = [
   "rename getUser to fetchUser in auth.ts",
@@ -26,22 +26,22 @@ const SAMPLES = [
   "design the sync layer between the iOS app and the CRM so edits made offline don't clobber each other",
 ];
 
-function readConfig(): Config {
+function readRaw(): unknown {
   try {
-    return normalizeConfig(JSON.parse(readFileSync(CONFIG, "utf8")));
+    return JSON.parse(readFileSync(CONFIG, "utf8"));
   } catch {
-    return normalizeConfig({});
+    return {};
   }
 }
 
-function apiKey(): string {
-  const fromEnv = process.env.TYPESAFE_API_KEY?.trim() || process.env.JEV_API_KEY?.trim();
+function apiKey(raw: unknown): string {
+  const fromEnv = keyFromEnv();
   if (fromEnv) return fromEnv;
-  try {
-    const key = execFileSync(INF_SECRET, ["JEV_API_KEY"], { encoding: "utf8", timeout: 30_000 }).trim();
-    if (key) return key;
-  } catch {}
-  throw new Error("No Jev API key: set TYPESAFE_API_KEY / JEV_API_KEY, or check Infisical JEV_API_KEY.");
+  const cmd = keyCommand(raw);
+  if (!cmd) throw new Error(NO_KEY);
+  const key = execFileSync(cmd[0]!, cmd.slice(1), { encoding: "utf8", timeout: 30_000 }).trim();
+  if (!key) throw new Error("apiKeyCommand printed nothing");
+  return key;
 }
 
 const argv = process.argv.slice(2);
@@ -53,10 +53,18 @@ for (let i = 0; i < argv.length; i++) {
 }
 if (prompts.length === 0) prompts.push(...SAMPLES);
 
-const cfg = readConfig();
+const raw = readRaw();
+const cfg: Config = normalizeConfig(raw);
 // Probing is not latency-bound like a live prompt; allow a slower first call.
 const timeout = Math.max(cfg.timeoutMs, 15_000);
-const client = new TypeSafeClient({ apiKey: apiKey(), defaultModel: "jev-latest", logLevel: "off" });
+let key: string;
+try {
+  key = apiKey(raw);
+} catch (err) {
+  console.error(err instanceof Error ? err.message : String(err));
+  process.exit(1);
+}
+const client = new TypeSafeClient({ apiKey: key, defaultModel: "jev-latest", logLevel: "off" });
 
 console.log(`config: ${cfg.minLevel}..${cfg.maxLevel}, keepBelow ${cfg.keepBelow}${previous ? `, previous reply: "${previous}"` : ""}\n`);
 

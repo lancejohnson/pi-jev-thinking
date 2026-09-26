@@ -9,7 +9,18 @@ Jev scores the prompt on four rungs (low, medium, high, xhigh), reading it with 
 - Any failure (no key, timeout, API error) leaves the level alone. Timeout 2.5s; a warm call takes ~200ms.
 - Every decision is appended to `~/.pi/agent/pi-jev-thinking/decisions.jsonl` for tuning.
 
-Key: `TYPESAFE_API_KEY`, `JEV_API_KEY`, or Infisical `JEV_API_KEY`.
+## API key
+
+You need a TypeSafe API key. The extension looks for it in this order:
+
+1. The `TYPESAFE_API_KEY` or `JEV_API_KEY` environment variable.
+2. `apiKeyCommand` in the config file: a command that prints the key. Use this to pull it from a password manager or secrets store instead of keeping it in your environment. A list runs the program directly; a single string runs through `sh -c`.
+
+```json
+{ "apiKeyCommand": ["op", "read", "op://Private/TypeSafe/credential"] }
+```
+
+The command runs once per session and the key is kept in memory. With no key, the extension leaves the thinking level alone.
 
 ## Config
 
@@ -23,7 +34,7 @@ Those are the built-in defaults. Any key you leave out falls back to them.
 
 ### Capping the level
 
-I keep my maximum at `high`, so my whole config file is:
+I keep my maximum at `high`:
 
 ```json
 { "maxLevel": "high" }
@@ -33,6 +44,14 @@ With that cap, a prompt Jev rates as xhigh runs at high instead. xhigh costs a l
 
 If you want the hardest prompts to get extra-high thinking, set `"maxLevel": "xhigh"` or leave the key out, since xhigh is the default. `minLevel` works the same way at the bottom of the scale. `npm run probe` shows what Jev picks under your current config, and it notes when the cap lowered a level.
 
+## Try it
+
+`npm run probe` sends a few sample prompts to Jev and prints the level each one would get. Pass your own prompts as arguments, and use `--prev "<last reply>"` to test a short follow-up like "yes".
+
 ## Command
 
 `/jev-thinking` status · `on` · `off` (this session) · `resume` (end a manual-change pause)
+
+## License
+
+MIT

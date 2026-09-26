@@ -8,12 +8,12 @@ import { appendFileSync, mkdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { TypeSafeClient } from "@typesafe-ai/sdk";
+import { keyCommand, keyFromEnv, NO_KEY } from "./src/key.ts";
 import { buildRequest, decide, lastAssistantText, LADDER, normalizeConfig, type Config, type Decision } from "./src/decide.ts";
 
 const HOME = process.env.HOME ?? "";
 const CONFIG = join(HOME, ".pi/agent/pi-jev-thinking/config.json");
 const LOG = join(HOME, ".pi/agent/pi-jev-thinking/decisions.jsonl");
-const INF_SECRET = join(HOME, ".claude/skills/api-call/scripts/inf-secret");
 const STATUS = "jev-thinking";
 
 interface Last extends Partial<Decision> {
@@ -46,11 +46,17 @@ export default function jevThinking(pi: ExtensionAPI) {
   let client: TypeSafeClient | undefined;
 
   async function apiKey(signal?: AbortSignal): Promise<string> {
-    const fromEnv = process.env.TYPESAFE_API_KEY?.trim() || process.env.JEV_API_KEY?.trim();
+    const fromEnv = keyFromEnv();
     if (fromEnv) return fromEnv;
     if (cachedKey) return cachedKey;
-    const result = await pi.exec(INF_SECRET, ["JEV_API_KEY"], { signal, timeout: 30_000 });
-    if (result.code !== 0 || !result.stdout.trim()) throw new Error("Jev API key unavailable");
+    let raw: unknown;
+    try {
+      raw = JSON.parse(readFileSync(CONFIG, "utf8"));
+    } catch {}
+    const cmd = keyCommand(raw);
+    if (!cmd) throw new Error(NO_KEY);
+    const result = await pi.exec(cmd[0]!, cmd.slice(1), { signal, timeout: 30_000 });
+    if (result.code !== 0 || !result.stdout.trim()) throw new Error(`apiKeyCommand failed (exit ${result.code})`);
     cachedKey = result.stdout.trim();
     return cachedKey;
   }
