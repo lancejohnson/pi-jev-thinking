@@ -2,9 +2,9 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { keyCommand, keyFromEnv } from "../src/key.ts";
 
-test("env: TYPESAFE_API_KEY wins, then JEV_API_KEY, blanks ignored", () => {
-  assert.equal(keyFromEnv({ TYPESAFE_API_KEY: " a ", JEV_API_KEY: "b" }), "a");
-  assert.equal(keyFromEnv({ TYPESAFE_API_KEY: "  ", JEV_API_KEY: "b" }), "b");
+test("env: JEV_API_KEY wins, then TYPESAFE_API_KEY, blanks ignored", () => {
+  assert.equal(keyFromEnv({ TYPESAFE_API_KEY: "a", JEV_API_KEY: " b " }), "b");
+  assert.equal(keyFromEnv({ TYPESAFE_API_KEY: " a ", JEV_API_KEY: "  " }), "a");
   assert.equal(keyFromEnv({}), undefined);
 });
 

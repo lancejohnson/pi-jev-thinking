@@ -1,5 +1,6 @@
 // Where the TypeSafe API key comes from, in order:
-//   1. TYPESAFE_API_KEY or JEV_API_KEY in the environment
+//   1. JEV_API_KEY or TYPESAFE_API_KEY in the environment. JEV_API_KEY wins because
+//      extensions/jev-backend.ts may point TYPESAFE_API_KEY at SubQ for pi-jev.
 //   2. `apiKeyCommand` in config.json: a command that prints the key on stdout,
 //      so it can come from a password manager or secrets store.
 
@@ -7,7 +8,7 @@ export const NO_KEY =
   "No Jev API key: set TYPESAFE_API_KEY (or JEV_API_KEY), or add an apiKeyCommand to ~/.pi/agent/pi-jev-thinking/config.json.";
 
 export function keyFromEnv(env: NodeJS.ProcessEnv = process.env): string | undefined {
-  return env.TYPESAFE_API_KEY?.trim() || env.JEV_API_KEY?.trim() || undefined;
+  return env.JEV_API_KEY?.trim() || env.TYPESAFE_API_KEY?.trim() || undefined;
 }
 
 /**
