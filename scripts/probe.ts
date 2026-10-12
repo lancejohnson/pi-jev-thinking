@@ -1,5 +1,5 @@
 /**
- * Live probe: send prompts to Jev and print the thinking level the extension would pick.
+ * Live probe: send prompts to SubQ Snap (or Jev, per ~/.pi/agent/jev-backend.json) and print the thinking level the extension would pick.
  *
  *   npm run probe                          # built-in sample prompts
  *   npm run probe -- "fix the typo" "why does the queue deadlock?"
@@ -13,6 +13,9 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { TypeSafeClient } from "@typesafe-ai/sdk";
 import { keyCommand, keyFromEnv, NO_KEY } from "../src/key.ts";
+import { backendKey, readBackend } from "../src/backend.ts";
+
+const backend = readBackend();
 import { buildRequest, decide, LADDER, normalizeConfig, type Config } from "../src/decide.ts";
 
 const HOME = process.env.HOME ?? "";
@@ -35,6 +38,8 @@ function readRaw(): unknown {
 }
 
 function apiKey(raw: unknown): string {
+  const configured = backendKey(backend);
+  if (backend.name === "subq") { if (configured) return configured; throw new Error("No SubQ key."); }
   const fromEnv = keyFromEnv();
   if (fromEnv) return fromEnv;
   const cmd = keyCommand(raw);
@@ -64,7 +69,8 @@ try {
   console.error(err instanceof Error ? err.message : String(err));
   process.exit(1);
 }
-const client = new TypeSafeClient({ apiKey: key, defaultModel: "jev-latest", logLevel: "off" });
+const client = new TypeSafeClient({ apiKey: key, baseURL: backend.baseURL, defaultModel: backend.model, logLevel: "off" });
+console.log(`backend: ${backend.name} (${backend.model})`);
 
 console.log(`config: ${cfg.minLevel}..${cfg.maxLevel}, keepBelow ${cfg.keepBelow}${previous ? `, previous reply: "${previous}"` : ""}\n`);
 

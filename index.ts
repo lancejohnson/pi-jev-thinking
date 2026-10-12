@@ -1,4 +1,4 @@
-// pi-jev-thinking — before each prompt, ask TypeSafe Jev how hard it is and set
+// pi-jev-thinking — before each prompt, ask SubQ Snap (or TypeSafe Jev) how hard it is and set
 // pi's thinking level to match. Inspired by aesisify/pi-auto-thinking, which asks
 // a small LLM for one word; Jev answers with a typed score and per-rung
 // probabilities in ~170ms, so there is nothing to parse and a real confidence to
@@ -9,6 +9,7 @@ import { dirname, join } from "node:path";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { TypeSafeClient } from "@typesafe-ai/sdk";
 import { keyCommand, keyFromEnv, NO_KEY } from "./src/key.ts";
+import { backendKey, readBackend } from "./src/backend.ts";
 import { buildRequest, decide, lastAssistantText, LADDER, normalizeConfig, type Config, type Decision } from "./src/decide.ts";
 
 const HOME = process.env.HOME ?? "";
@@ -45,8 +46,15 @@ export default function jevThinking(pi: ExtensionAPI) {
   let cachedKey: string | undefined;
   let client: TypeSafeClient | undefined;
 
+  const backend = readBackend();
+
   async function apiKey(signal?: AbortSignal): Promise<string> {
-    const fromEnv = keyFromEnv();
+    if (backend.name === "subq") {
+      const k = backendKey(backend);
+      if (k) return k;
+      throw new Error("No SubQ key: set SUBQ_API_KEY or ~/.pi/agent/secrets/subq_api_key (pi-jev fetches it from Infisical on first use), or set {\"backend\":\"jev\"} in ~/.pi/agent/jev-backend.json.");
+    }
+    const fromEnv = keyFromEnv() ?? backendKey(backend);
     if (fromEnv) return fromEnv;
     if (cachedKey) return cachedKey;
     let raw: unknown;
@@ -119,9 +127,9 @@ export default function jevThinking(pi: ExtensionAPI) {
     const t0 = Date.now();
     const snippet = text.replace(/\s+/g, " ").slice(0, 80);
     try {
-      client ??= new TypeSafeClient({ apiKey: await apiKey(ctx.signal), defaultModel: "jev-latest", logLevel: "off" });
-      const previous = lastAssistantText(ctx.sessionManager.getBranch());
-      const res = await client.systemOne(buildRequest(text, previous), { timeout: cfg.timeoutMs, retry: { maxRetries: 0 } });
+      client ??= new TypeSafeClient({ apiKey: await apiKey(ctx.signal), baseURL: backend.baseURL, defaultModel: backend.model, logLevel: "off" });
+      const previous = lastAssistantText(ctx.sessionManager.getBranch(), backend.contextChars);
+      const res = await client.systemOne(buildRequest(text, previous, backend.contextChars), { timeout: cfg.timeoutMs, retry: { maxRetries: 0 } });
       const d = res.answers.difficulty;
       const probabilities = LADDER.map((_, i) => Number((d.probabilities as Record<string, number>)[String(i)] ?? 0));
       const decision = decide({ probabilities, expected: d.score, continuation: res.answers.continuation.noul }, cfg);
